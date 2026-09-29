@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<title>FE Ver.9.0 新規範囲問題練習</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#f4f6fa;color:#172033;font-family:-apple-system,BlinkMacSystemFont,"Noto Sans JP",sans-serif}
+header{background:#172554;color:#fff;padding:18px 16px}.wrap{max-width:760px;margin:auto}
+h1{font-size:20px;margin:0}.sub{font-size:12px;color:#dbe4ff;margin-top:5px}
+main{padding:14px}.card{background:white;border:1px solid #dfe3eb;border-radius:14px;padding:16px;margin-bottom:12px}
+select,button{font:inherit;border-radius:10px;padding:11px;border:1px solid #ccd2df;background:#fff}
+button{cursor:pointer}.primary{background:#315efb;color:#fff;border-color:#315efb;font-weight:700}.danger{color:#b42318}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}.grid button{width:100%}
+.question-no{font-size:13px;color:#667085}.tag{display:inline-block;background:#eef2ff;color:#3049a8;border-radius:99px;padding:5px 8px;font-size:12px;margin:8px 0}
+.question{font-size:18px;font-weight:700;line-height:1.65}.option{width:100%;text-align:left;margin-top:9px;line-height:1.5}.option.correct{background:#ecfdf3;border-color:#12b76a}.option.wrong{background:#fff1f3;border-color:#f04438}.option:disabled{cursor:default}
+.feedback{margin-top:12px;padding:12px;border-radius:10px;line-height:1.6}.ok{background:#ecfdf3}.ng{background:#fff1f3}
+.barbg{height:7px;background:#e7eaf0;border-radius:99px;margin:10px 0}.bar{height:100%;background:#315efb;border-radius:99px;width:0}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.stat{background:#f8fafc;border-radius:10px;padding:12px;text-align:center}.stat b{display:block;font-size:21px}.muted{color:#667085;font-size:13px}
+.hidden{display:none}.wide{width:100%;margin-top:10px}
+</style>
+<link rel="manifest" href="./manifest.webmanifest">
+<meta name="theme-color" content="#172554">
+<link rel="apple-touch-icon" href="./icons/icon-192.png">
+</head>
+<body>
+<header><div class="wrap"><h1>FE Ver.9.0 新規範囲問題練習</h1><div class="sub">基本情報技術者試験・Ver.9.0追加／強化テーマ特化</div></div></header>
+<main class="wrap">
+<section id="home" class="card">
+<h2>問題設定</h2>
+<p class="muted">オリジナル問題です。選択した分野からランダムに出題します。</p>
+<label>分野<br><select id="category" class="wide">
+<option value="all">全分野</option><option>AI・機械学習</option><option>統計・データサイエンス</option><option>UX/UI</option><option>DB・データ活用</option><option>セキュリティ</option><option>開発・クラウド</option><option>経営・マーケティング</option><option>倫理・法務</option><option>言語・その他</option>
+</select></label>
+<div class="grid" style="margin-top:10px">
+<button class="primary" data-start="10">10問</button><button class="primary" data-start="20">20問</button><button class="primary" data-start="999">全問</button><button id="weak">未正解のみ</button>
+</div>
+<button id="reset" class="wide danger">保存した成績をリセット</button>
+</section>
+
+<section id="quiz" class="hidden">
+<div class="card">
+<div class="question-no" id="counter"></div><div class="barbg"><div id="bar" class="bar"></div></div>
+<div id="qbox"></div>
+</div>
+</section>
+
+<section id="result" class="card hidden"></section>
+</main>
+
+<script>
+"use strict";
+const QUESTIONS=[
+["AI・機械学習","ファインチューニング","事前学習済みの大規模言語モデルを特定業務向けに調整する方法はどれか。",["一から学習する","特定データで追加学習する","入力を暗号化する","温度だけ変更する"],1,"事前学習済みモデルを目的に合わせたデータで追加学習して調整する。"],
+["AI・機械学習","過学習","訓練データでは高精度だが未知データでは精度が低い状態はどれか。",["過学習","標準化","量子化","正則化"],0,"訓練データに過度に適合し、汎化性能が低下した状態。"],
+["AI・機械学習","教師なし学習","正解ラベルを与えず、購買傾向の似た顧客をグループ化する代表的手法はどれか。",["回帰","クラスタリング","分類","強化学習"],1,"正解ラベルなしで似たデータを集めるのがクラスタリング。"],
+["AI・機械学習","交差検証","データを複数に分割し、検証用データを入れ替えながらモデルを評価する方法はどれか。",["交差検証","主成分分析","決定木","量子化"],0,"k分割交差検証などでは分割を入れ替えて性能を評価する。"],
+["AI・機械学習","ROC曲線","二値分類で、しきい値を変化させたときの真陽性率と偽陽性率の関係を表すものはどれか。",["ROC曲線","箱ひげ図","散布図","パレート図"],0,"ROC曲線はTPRとFPRの関係を表す。"],
+["AI・機械学習","CNN","画像認識で畳み込み演算を利用して局所的特徴を抽出するニューラルネットワークはどれか。",["RNN","CNN","GAN","SVM"],1,"CNNは畳み込みニューラルネットワーク。"],
+["AI・機械学習","LLM","大量のテキストなどを学習し、文章生成や要約などに利用されるモデルはどれか。",["LLM","RAID","DNS","ETL"],0,"LLMは大規模言語モデル。"],
+["AI・機械学習","プロンプトエンジニアリング","生成AIに目的、条件、出力形式などを明確に指示する工夫はどれか。",["プロンプトエンジニアリング","データマイニング","リバースエンジニアリング","ロードバランシング"],0,"生成AIへの指示文を設計・改善する考え方。"],
+["統計・データサイエンス","相関と因果","二つの事象に相関があっても、因果関係があるとは限らない主な理由はどれか。",["共通の要因による可能性がある","相関係数は必ず0になる","因果があると計算不能","平均値を使うと相関が消える"],0,"第三の要因が両方に影響するなど、相関だけでは因果を確定できない。"],
+["統計・データサイエンス","p値","帰無仮説が正しいと仮定したとき、観測結果以上に極端な結果が得られる確率はどれか。",["p値","中央値","標準偏差","決定係数"],0,"仮説検定で用いられるp値の定義。"],
+["統計・データサイエンス","第1種の誤り","帰無仮説が実際には正しいのに棄却してしまう誤りはどれか。",["第1種の誤り","第2種の誤り","丸め誤差","情報落ち"],0,"真の帰無仮説を誤って棄却するのが第1種の誤り。"],
+["統計・データサイエンス","ロジスティック回帰","購入する／しないのような二値の結果を予測する代表的手法はどれか。",["ロジスティック回帰","k-means","主成分分析","移動平均"],0,"ロジスティック回帰は二値分類などに利用される。"],
+["UX/UI","UX","検索から購入、配送確認までを含めた利用者の体験全体を扱う概念はどれか。",["UX","RAID","DNS","CPU"],0,"UXはサービス利用を通じたユーザー体験全体を扱う。"],
+["UX/UI","フィードバック","ボタン操作後に処理中であることを表示する設計が重視する考え方はどれか。",["利用者へのフィードバック","正規化","多重化","デッドロック回避"],0,"操作に対するシステムの反応を明示する。"],
+["DB・データ活用","ドキュメント指向DB","JSONのようなドキュメント単位で柔軟な構造のデータを扱うNoSQLはどれか。",["ドキュメント指向DB","DNSキャッシュ","磁気テープDB","排他制御"],0,"ドキュメント指向DBはJSON等をドキュメントとして扱う。"],
+["DB・データ活用","キーバリュー型DB","ユーザーIDをキーとして設定情報を取得するような単純なアクセスに適するNoSQL方式はどれか。",["キーバリュー型","階層型","ネットワーク型","関係型"],0,"キーと値の組で管理し、キーを指定して値を取得する。"],
+["セキュリティ","3-2-1ルール","バックアップの3-2-1ルールにおける『1』の意味はどれか。",["1台のサーバだけに保存","1つをネットワークから隔離して保管","1回だけバックアップ","1人だけが管理"],1,"3コピー、2種類の媒体、1つはオフライン等の隔離保管という考え方。"],
+["セキュリティ","ランサムウェア対策","ランサムウェア対策として適切なバックアップ方法はどれか。",["常時同じネットワーク上で書換可能にする","複数世代を保持し必要に応じて隔離する","1回だけ作成する","全て同じ認証情報で管理する"],1,"攻撃者による暗号化・削除への備えとして世代管理や隔離を行う。"],
+["セキュリティ","AIセキュリティ","AIをセキュリティ監視に利用する例として適切なものはどれか。",["大量ログから異常パターンを検出する","誤検知を必ずゼロにする","AIは認証に使えない","ログ収集を不要にする"],0,"機械学習等で大量ログから通常と異なる傾向を検出できる。"],
+["開発・クラウド","DevOps","開発と運用が連携し、自動テストや自動デプロイを活用して継続的に改善する考え方はどれか。",["DevOps","RAID","VLAN","ウォータフォールのみ"],0,"DevelopmentとOperationsの連携・自動化を重視する。"],
+["開発・クラウド","IaC","インフラ構成をコードで記述し、同じ構成を自動的に再現できるようにする考え方はどれか。",["IaC","OCR","ETL","BPR"],0,"Infrastructure as Code。再現性と自動化を高める。"],
+["開発・クラウド","FaaS","クラウド上でイベント発生時に関数単位の処理を実行し、サーバ管理を意識しにくいサービス形態はどれか。",["FaaS","IaaS","NAS","専用線"],0,"Function as a Service。イベント駆動で関数を実行する。"],
+["経営・マーケティング","SEO","検索エンジンで自社サイトを見つけられやすくする施策はどれか。",["SEO","RAID","QoS","PKI"],0,"SEOは検索エンジン最適化。"],
+["経営・マーケティング","AI利活用","企業が生成AIを業務利用するとき、適切な初期検討事項はどれか。",["目的・範囲・リスク・データ取扱いを明確化","AIなら確認不要","全社データを無条件で入力","出力は必ず正しいと仮定"],0,"目的と利用範囲、情報漏えい、著作権、誤出力等を考慮する。"],
+["倫理・法務","技術者倫理","生成AIの出力を重要な業務判断に使う場合、適切な対応はどれか。",["内容を検証し限界とリスクを考慮する","検証不要","誤りを利用者に知らせない","入力情報の扱いを考えない"],0,"AI出力には誤りがあり得るため、重要用途では検証が必要。"],
+["言語・その他","R","統計解析やデータ分析で広く使われるプログラミング言語はどれか。",["R","HTML","CSS","SQL"],0,"Rは統計計算、データ分析、可視化などで広く利用される。"],
+["言語・その他","Go","Googleが開発し、並行処理やサーバサイド開発などで利用される言語はどれか。",["Go","Fortran","SQL","CSS"],0,"Go（Golang）はGoogleで開発されたプログラミング言語。"],
+["言語・その他","Julia","数値計算や科学技術計算を主要用途の一つとする言語はどれか。",["Julia","HTML","SQL","BASIC"],0,"Juliaは科学技術計算・数値計算などを意識して設計された言語。"]
+];
+
+const state={pool:[],pos:0,score:0,weak:false,answered:false,stats:{}};
+const $=id=>document.getElementById(id);
+function load(){try{state.stats=JSON.parse(localStorage.getItem("fe90_stats")||"{}")}catch(e){state.stats={}}}
+function save(){localStorage.setItem("fe90_stats",JSON.stringify(state.stats))}
+function shuffled(a){return [...a].sort(()=>Math.random()-0.5)}
+function available(){
+ const cat=$("category").value;
+ return QUESTIONS.filter(q=>(cat==="all"||q[0]===cat)&&(!state.weak||!state.stats[q[1]]||state.stats[q[1]].wrong>0));
+}
+function start(n){
+ const a=available();
+ if(!a.length){alert("この条件に該当する問題がありません。");return}
+ state.pool=shuffled(a).slice(0,Math.min(n,a.length));state.pos=0;state.score=0;
+ $("home").classList.add("hidden");$("result").classList.add("hidden");$("quiz").classList.remove("hidden");show();
+}
+function show(){
+ const q=state.pool[state.pos];
+ state.answered=false;
+ $("counter").textContent=`第 ${state.pos+1} 問 / ${state.pool.length}`;
+ $("bar").style.width=(state.pos/state.pool.length*100)+"%";
+ let s=`<div class="tag">${q[0]}　/　${q[1]}</div><div class="question">${q[2]}</div>`;
+ q[3].forEach((x,i)=>s+=`<button class="option" data-i="${i}">${"ABCD"[i]}. ${x}</button>`);
+ $("qbox").innerHTML=s;
+ document.querySelectorAll(".option").forEach(b=>b.addEventListener("click",()=>answer(Number(b.dataset.i))));
+}
+function answer(i){
+ if(state.answered)return;
+ state.answered=true;
+ const q=state.pool[state.pos], ok=i===q[4];
+ if(!state.stats[q[1]])state.stats[q[1]]={correct:0,wrong:0};
+ if(ok){state.score++;state.stats[q[1]].correct++}else state.stats[q[1]].wrong++;
+ save();
+ document.querySelectorAll(".option").forEach((b,n)=>{b.disabled=true;if(n===q[4])b.classList.add("correct");if(n===i&&!ok)b.classList.add("wrong")});
+ $("qbox").insertAdjacentHTML("beforeend",`<div class="feedback ${ok?"ok":"ng"}><b>${ok?"正解":"不正解"}</b><br>${q[5]}</div><button id="next" class="primary wide">${state.pos===state.pool.length-1?"結果を見る":"次の問題"}</button>`);
+ $("next").addEventListener("click",()=>{if(state.pos===state.pool.length-1)result();else{state.pos++;show()}});
+}
+function result(){
+ $("quiz").classList.add("hidden");$("result").classList.remove("hidden");
+ const pct=Math.round(state.score/state.pool.length*100);
+ $("result").innerHTML=`<h2>結果</h2><div class="stats"><div class="stat"><b>${state.score}</b>正解</div><div class="stat"><b>${state.pool.length-state.score}</b>不正解</div><div class="stat"><b>${pct}%</b>正答率</div></div><p class="muted">「未正解のみ」を選ぶと、間違えたテーマを優先して練習できます。</p><button id="again" class="primary wide">同じ条件でもう一度</button><button id="top" class="wide">トップへ戻る</button>`;
+ $("again").addEventListener("click",()=>start(state.pool.length));
+ $("top").addEventListener("click",()=>{$("result").classList.add("hidden");$("home").classList.remove("hidden")});
+}
+document.addEventListener("DOMContentLoaded",()=>{
+ load();
+ document.querySelectorAll("[data-start]").forEach(b=>b.addEventListener("click",()=>start(Number(b.dataset.start))));
+ $("weak").addEventListener("click",e=>{state.weak=!state.weak;e.currentTarget.classList.toggle("primary",state.weak);e.currentTarget.textContent=state.weak?"未正解のみ：ON":"未正解のみ"});
+ $("reset").addEventListener("click",()=>{if(confirm("保存した成績をすべて削除しますか？")){state.stats={};save();alert("成績をリセットしました。")}});
+});
+</script>
+<script>
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", function () {
+    navigator.serviceWorker.register("./sw.js").catch(function(err){ console.error("SW:", err); });
+  });
+}
+</script>
+</body>
+</html>
